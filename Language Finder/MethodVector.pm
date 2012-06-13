@@ -11,11 +11,11 @@ use Calcul ;
 
 # compute dot product
 sub dot_product {
-  my @freq_corpus = @{ $_[0] } ;
-  my %txt = %{ $_[1] } ;
-  my @textes = @{ $_[2] } ;
+  my ($freq_corpus, $txt, $texts) = @_;
+  my @freq_corpus = @{ $freq_corpus } ;
+  my %txt = %{ $txt } ;
+  my @texts = @{ $texts } ;
 
-  
   my %results ;
   # loop over each language
   for (my $i= 0 ; $i < @freq_corpus ; $i++) {
@@ -38,11 +38,11 @@ sub dot_product {
       # cosinus is the fraction of descripted above
       $cos = $numerator / $denominator ;
       # convert in percentages
-      $results{$textes[$i]{language}} = $cos * 100;
+      $results{$texts[$i]{language}} = $cos * 100;
     }
     # if not found, percentage equals zero
     else {
-      $results{$textes[$i]{language}} = 0;
+      $results{$texts[$i]{language}} = 0;
     }
   }
 
@@ -54,25 +54,24 @@ sub dot_product {
 
 # compute vectors for words
 sub words {
-  my @textes = @{ $_[1] } ;
+  my ($file, $texts) = @_;
+  my @texts = @{ $texts } ;
   my @freq_corpus ;
 
-  my $textes_nbr = scalar(@textes) ;
+  my $textes_nbr = scalar(@texts) ;
 
   # acquire vectors computed by Calcul module
-  for (my $i=0 ; $i <$textes_nbr ; $i++)
-    {
-      $freq_corpus[$i] = Calcul::txt2hash($textes[$i]{frequencies}) ;
-    }
+  for (my $i=0 ; $i <$textes_nbr ; $i++) {
+    $freq_corpus[$i] = Calcul::txt2hash($texts[$i]{frequencies}) ;
+  }
 
   # computes the word vector for our text
-  my $fileHandle = $_[0] ;
-  open(TXT, '<:utf8', $fileHandle);
+  open(TXT, '<:utf8', $file);
 
   my $count_words;
   my %txt ;
   while (<TXT>) {
-    chomp($_);                          # rm newlines
+    chomp;                          # rm newlines
     my @mots = split(/\pP|\pS|\s/, $_); # extract words
     foreach my $mot(@mots) {
       if ($mot ne ""){
@@ -104,53 +103,53 @@ sub words {
 
 # compute the gramm for our text
 sub get_gramms {
-    my $fileHandle = $_[0];
-    open(TXT, '<:utf8', $fileHandle);
-    my $count = 0 ;
-    my %txt ;
-    my %gramm ;
-    my $n = $_[1] ;
+  my ($file) = @_;
 
-    while (<TXT>) {
-	for my $word(split(/\pP|\pS|\s/, $_)){
-	    my $tail = substr $word, -$n ;
-	    $gramm{$tail}++ and $count++ if (length($tail) == $n);
-	}
-    }
+  open(TXT, '<:utf8', $file);
+  my $count = 0 ;
+  my %txt ;
+  my %gramm ;
+  my $n = $_[1] ;
 
-    my @sorted ;
-    @sorted = sort { ( $gramm{$b} <=> $gramm{$a}) or ($a cmp $b) } keys %gramm ;
-    for (my $i = 0; $i < $main::max_num ; $i++) {
-	$txt{$sorted[$i]} = $gramm{$sorted[$i]}/$count*100 if (exists $sorted[$i]);
+  while (<TXT>) {
+    for my $word(split(/\pP|\pS|\s/, $_)){
+      my $tail = substr $word, -$n ;
+      $gramm{$tail}++ and $count++ if (length($tail) == $n);
     }
-    close(TXT);
-    return \%txt ;
+  }
+
+  my @sorted ;
+  @sorted = sort { ( $gramm{$b} <=> $gramm{$a}) or ($a cmp $b) } keys %gramm ;
+  for (my $i = 0; $i < $main::max_num ; $i++) {
+    $txt{$sorted[$i]} = $gramm{$sorted[$i]}/$count*100 if (exists $sorted[$i]);
+  }
+  close(TXT);
+  return \%txt ;
 }
 
 
 # compute vectors for suffixes
 sub suffixes {
-  my $fileHandle = $_[0] ;
-  my @textes = @{ $_[1] } ;
-  my $textes_nbr = scalar(@textes) ;
+  my ($file, $texts) = @_;
+  my @texts = @{ $texts } ;
+  my $textes_nbr = scalar(@texts) ;
   my %txt ;
   my @freq_corpus ;
 
   # acquire suffixes from corpus frequency file
-  for (my $i=0 ; $i <$textes_nbr ; $i++)
-    {
-      $freq_corpus[$i] = Calcul::txt2hash_suffix($textes[$i]{frequencies}) ;
-    }
+  for (my $i=0 ; $i <$textes_nbr ; $i++) {
+    $freq_corpus[$i] = Calcul::txt2hash_suffix($texts[$i]{frequencies}) ;
+  }
 
   # compute suffixes for text
   for (my $i = 1 ; $i <= $main::gramm_number ; $i++ ) {
-      my %gramm ;
-      %gramm  = %{ &get_gramms($fileHandle,$i) } ;
-      while (my($k,$v) = each %gramm){
-	  $txt{$k} =  $v;
-      }
+    my %gramm ;
+    %gramm  = %{ &get_gramms($file,$i) } ;
+    while (my($k,$v) = each %gramm){
+      $txt{$k} =  $v;
+    }
   }
- 
+
   my ($max_weight, $max_weight_value) ;
   ($max_weight, $max_weight_value) = &dot_product(\@freq_corpus, \%txt, $_[1]);
 
